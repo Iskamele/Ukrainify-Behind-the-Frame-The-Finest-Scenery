@@ -1,0 +1,86 @@
+This repository contains the code and the font. The translation and artwork are
+kept separately and reach players only inside the installer. Each kind of
+material has its own terms.
+
+
+1. CODE  (apply.py, verify.py, installer.py, build.bat, reference/)
+   MIT License
+
+   Copyright (c) 2026 Oleksandr Novikov
+
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
+
+   The above copyright notice and this permission notice shall be included in
+   all copies or substantial portions of the Software.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+
+
+2. TRANSLATION AND ARTWORK  (not in this repository; shipped only in the installer)
+   Copyright (c) 2026 Oleksandr Novikov. All rights reserved.
+
+   You may download the installer from the official source below and run it
+   on your own copy of the game. Anything else needs the author's written
+   permission, including:
+
+   - uploading the installer, or any file from it, anywhere else: websites,
+     launchers, catalogues, collections, mod packs;
+   - using the translation or the lettering, in whole or in part, as the basis
+     for another translation, port or project;
+   - any commercial use.
+
+   Official source: https://github.com/Iskamele/Ukrainify-Behind-the-Frame-The-Finest-Scenery/releases
+   Official page:   https://steamcommunity.com/sharedfiles/filedetails/?id=3801864198
+   To ask for permission, open an issue in this repository.
+
+   Silver Lining Studio and Akupara Games may use the translation and the
+   Ukrainian lettering in official builds of the game, free of charge.
+
+   These terms cover the author's own work only. The illustrations,
+   backgrounds and logos in the redrawn images belong to Silver Lining Studio;
+   only the Ukrainian lettering on them is the author's.
+
+   Українською. Переклад і перемальовані написи — © 2026 Oleksandr Novikov,
+   усі права захищено. Ви можете завантажити інсталятор з офіційного джерела
+   (Releases цього репозиторію) і запустити його на власній копії гри. Усе
+   інше — лише з письмової згоди автора, зокрема: розміщення інсталятора чи
+   будь-якого його файлу деінде (сайти, лаунчери, каталоги, збірки, модпаки);
+   використання перекладу чи написів повністю або частково як основи для
+   іншого перекладу, порту чи проєкту; будь-яке комерційне використання.
+   Запит на дозвіл — через Issues цього репозиторію. Silver Lining Studio та
+   Akupara Games можуть безкоштовно використати переклад і українські написи в
+   офіційних версіях гри. Ілюстрації, фони й логотипи в перемальованих
+   зображеннях належать Silver Lining Studio; автору належать лише українські
+   написи на них.
+
+
+3. FONT  (data/font/: MPLUSRounded1c-Medium.ttf and the atlas baked from it,
+          uk_atlas.resS.bin and uk_rects.json)
+   SIL Open Font License 1.1 — see data/font/OFL.txt.
+
+   Copyright 2016 The Rounded M+ Project Authors.
+   The baked atlas is a modified version of this font and is distributed under
+   the same licence.
+
+
+NOT INCLUDED
+
+This repository contains no files from the game. The installer modifies a copy
+you already own. Besides the translation and the font, it carries 67 images in
+which the game's own artwork has Ukrainian lettering in place of the original;
+that artwork remains Silver Lining Studio's.
+
+Behind the Frame: The Finest Scenery is © Silver Lining Studio. This project is
+an unofficial community translation and is not affiliated with or endorsed by
+the studio or its publisher.
