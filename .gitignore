@@ -1,0 +1,27 @@
+# --- game files: never commit these -------------------------------------
+# local/ holds a prebuilt resources.assets and the artwork extracted from the
+# game for reference. Both belong to Silver Lining Studio; the whole point of
+# this repository is that it ships none of it.
+local/
+resources.assets*
+*.resS
+*.orig
+
+# --- translation and artwork: not published ------------------------------
+# private/ is a local link to them. They reach users only inside the
+# installer; see LICENSE.
+/private
+
+# --- build output ---------------------------------------------------------
+# The installer is attached to GitHub Releases, not committed: ~30 MB, and
+# rebuilt by build.bat from these sources plus private/.
+dist/
+build/
+*.spec
+
+# --- tooling --------------------------------------------------------------
+.idea/
+__pycache__/
+*.pyc
+.venv/
+venv/
