@@ -3,15 +3,25 @@
 
 Applies every stage to a clean install in one pass:
 
-  1 font      rebaked MPLUSRounded1c atlas (adds і ї є ґ and friends)
-  2 text      703 translated strings into the "Language - Russian" slot
+  1 font      rebaked MPLUSRounded1c atlas (adds і ї є ґ and friends), and
+              the English slot switched to it
+  2 text      703 translated strings into the "Language - English" slot
   3 label     the language picker entry -> Українська
   4 title     "Натисніть, щоб почати"
   5 computer  the two full-page images (they live in atlas pages, not their
               own textures — that distinction matters, see open_fullrect)
   6 resume    36 word images, repacked into the atlas + re-laid-out
-  7 journal   16 handwritten notes
+  7 journal   34 notes, letters and sketch captions
   8 cutscenes 12 spoken lines
+
+The translation takes the English slot, and only English objects are changed:
+prefabs and animations point at them directly, so whatever path the game
+takes to an image, it lands on the Ukrainian one. The Russian slot is left
+exactly as shipped. Its lettering is laid out closest to Ukrainian, though, so
+the Russian objects still serve as the reference: most of the redrawn art was
+cut to their canvases, the résumé follows their line breaks, and the hashes in
+reference/ identify them. Art cut to the English sprite instead is marked
+template=en in its manifest.
 
 Everything is resolved by asset NAME or by matching stored reference pixels,
 never by stored object ids, so a re-downloaded (or slightly patched) game is
@@ -42,8 +52,14 @@ ART = os.path.join(PRIVATE, 'art')
 REF = os.path.join(HERE, 'reference')
 PPU = 100.0
 FONT_NAME = 'MPLUSRounded1c-Medium'
-LANG_SLOT = 'Language - Russian'
+SLOT = 'English'
+LANG_SLOT = f'Language - {SLOT}'
 NEW_LABEL = 'Українська'
+TITLE = 'press_text'
+COMPUTER = (('puzzle_computer_ch4_resume_en', 'ch4_resume.png'),
+            ('puzzle_computer_popup_background_en', 'popup_background.png'))
+RESUME_RU = r'^puzzle_computer_resume_text_(\d\d)_a(\d+)$'     # the layout
+RESUME_EN = r'^puzzle_computer_resume_text_(\d\d)_(\d+)$'      # what gets it
 
 log = lambda *a: print(*a, flush=True)
 
@@ -90,11 +106,13 @@ class Game:
         self.dir = data_dir
         self.assets = os.path.join(data_dir, 'resources.assets')
         self.ress = os.path.join(data_dir, 'resources.assets.resS')
-        for p in (self.assets, self.ress):
+        self.ggm = os.path.join(data_dir, 'globalgamemanagers')   # read only
+        for p in (self.assets, self.ress, self.ggm):
             if not os.path.isfile(p):
                 sys.exit(f'not a game data folder: {p} missing')
         self.env = UnityPy.load(self.assets)
         self.objs = {o.path_id: o for o in self.env.objects}
+        self._paths = None
         self._sprites = defaultdict(list)
         self._atlas = {}
         for o in self.env.objects:
@@ -130,6 +148,21 @@ class Game:
         r = stt['m_RD']['textureRect']
         return self.objs[stt['m_RD']['texture']['m_PathID']], r, None
 
+    def paths(self):
+        """Resources path -> {type name: object}: what the game loads by path.
+        Read from globalgamemanagers, which is never written."""
+        if self._paths is None:
+            f = UnityPy.load(self.ggm).file
+            fid = next(i + 1 for i, e in enumerate(f.externals)
+                       if os.path.basename(e.path) == 'resources.assets')
+            rm = next(o for o in f.objects.values() if o.type.name == 'ResourceManager')
+            self._paths = defaultdict(dict)
+            for p, pp in rm.read_typetree()['m_Container']:
+                o = self.objs.get(pp['m_PathID']) if pp['m_FileID'] == fid else None
+                if o:
+                    self._paths[p][o.type.name] = o
+        return self._paths
+
     def save(self):
         data = self.env.file.save()
         with open(self.assets, 'wb') as f:
@@ -139,19 +172,21 @@ class Game:
         return len(data)
 
 
-def paint(tex_obj, img, rx, ry, rw, rh, clear_whole=True):
-    """Paste into a texture using Unity's bottom-up Y. Returns the new page."""
+def paint(tex_obj, img, rx, ry, rw, rh, clear_whole=True, canvas=None):
+    """Paste into a texture using Unity's bottom-up Y. Returns the new page.
+    canvas=(width, height, format) gives the texture a new size and format."""
     tt = tex_obj.read_typetree()
-    TW, TH = tt['m_Width'], tt['m_Height']
+    TW, TH, fmt = canvas or (tt['m_Width'], tt['m_Height'], tt['m_TextureFormat'])
     if clear_whole:
         page = Image.new('RGBA', (TW, TH), (0, 0, 0, 0))
     else:
+        assert not canvas, 'a resized texture has nothing to keep'
         page = tex_obj.read().image.convert('RGBA')
     if (img.width, img.height) != (rw, rh):
         img = img.resize((rw, rh), Image.LANCZOS)
     page.paste(img, (rx, TH - ry - rh))
     t2 = tex_obj.read()
-    t2.set_image(page, target_format=TextureFormat(tt['m_TextureFormat']))
+    t2.set_image(page, target_format=TextureFormat(fmt))
     t2.save()
     return TW, TH
 
@@ -189,7 +224,34 @@ def stage_font(g):
         os.fsync(f.fileno())
     tt['m_CharacterRects'] = json.load(open(os.path.join(DATA, 'font', 'uk_rects.json')))
     font.save_typetree(tt)
-    log(f'  font      {len(tt["m_CharacterRects"])} glyphs, atlas -> resS@{sd["offset"]}')
+    # the English slot's own font (Korolev Rounded) has no Cyrillic at all
+    ts, at = type_setting_font(g)
+    raw = ts.get_raw_data()
+    was = g.objs[struct.unpack('<q', raw[at + 4:at + 12])[0]].read_typetree()['m_Name']
+    ts.set_raw_data(raw[:at] + struct.pack('<iq', 0, font.path_id) + raw[at + 12:])
+    log(f'  font      {len(tt["m_CharacterRects"])} glyphs, atlas -> resS@{sd["offset"]}; '
+        f'{SLOT} slot {was} -> {FONT_NAME}')
+
+
+def type_setting_font(g):
+    """-> (MonoBehaviour, offset of its font PPtr). A slot's type setting is a
+    pair (TextAsset, Font): find it by its reference to the slot's text."""
+    text = next(o for o in g.env.objects if o.type.name == 'TextAsset'
+                and o.read_typetree().get('m_Name') == LANG_SLOT)
+    ref = struct.pack('<iq', 0, text.path_id)
+    hits = []
+    for o in g.env.objects:
+        if o.type.name != 'MonoBehaviour':
+            continue
+        raw = o.get_raw_data()
+        i = raw.find(ref)
+        if i < 0 or len(raw) < i + 24:
+            continue
+        fid, pid = struct.unpack('<iq', raw[i + 12:i + 24])
+        if fid == 0 and pid in g.objs and g.objs[pid].type.name == 'Font':
+            hits.append((o, i + 12))
+    assert len(hits) == 1, f'{LANG_SLOT}: expected 1 type setting, found {len(hits)}'
+    return hits[0]
 
 
 def stage_text(g):
@@ -204,7 +266,7 @@ def stage_text(g):
 
 
 def stage_label(g):
-    KEY = b'Languages/TypeSettings/Russian'
+    KEY = f'Languages/TypeSettings/{SLOT}'.encode()
     obj = next(o for o in g.env.objects
                if o.type.name == 'MonoBehaviour' and KEY in o.get_raw_data())
     raw = obj.get_raw_data()
@@ -225,7 +287,7 @@ def stage_label(g):
 
 
 def stage_title(g):
-    sp = g.one('press_text_ru')
+    sp = g.one(TITLE)
     stt = sp.read_typetree()
     tex, r, _ = g.texture_of(sp)
     img = Image.open(os.path.join(ART, 'title', 'press_text.png')).convert('RGBA')
@@ -233,12 +295,11 @@ def stage_title(g):
     TW, TH = paint(tex, img, rx, ry, rw, rh)
     open_fullrect(stt, TW, TH)
     sp.save_typetree(stt)
-    log(f'  title     press_text_ru {rw}x{rh} -> full {TW}x{TH}')
+    log(f'  title     {TITLE} {rw}x{rh} -> full {TW}x{TH}')
 
 
 def stage_computer_images(g):
-    for name, f in (('puzzle_computer_ch4_resume_ru', 'ch4_resume.png'),
-                    ('puzzle_computer_popup_background_ru', 'popup_background.png')):
+    for name, f in COMPUTER:
         sp = g.one(name)
         tex, r, hit = g.texture_of(sp)
         assert hit, f'{name}: expected an atlas-packed sprite'
@@ -249,12 +310,13 @@ def stage_computer_images(g):
         log(f'  computer  {name} -> atlas page {tex.path_id} @({rx},{ry}) {rw}x{rh}')
 
 
-def _resume_layout(g):
-    """Rebuild the row layout from the game itself: renderer -> GameObject ->
-    RectTransform, grouped into rows by Y and ordered by X."""
+def _resume_layout(g, pattern=RESUME_RU):
+    """Rebuild a résumé layout from the game itself: renderer -> GameObject ->
+    RectTransform, grouped into rows by Y and ordered by X. Both language
+    groups number their words the same way: text_NN_... is word NN."""
     rus = {}
     for name, lst in g._sprites.items():
-        m = re.match(r'^puzzle_computer_resume_text_(\d\d)_a(\d+)$', name or '')
+        m = re.match(pattern, name or '')
         if m:
             rus[lst[0].path_id] = (int(m.group(1)), name)
     pats = {pid: struct.pack('<iq', 0, pid) for pid in rus}
@@ -276,11 +338,12 @@ def _resume_layout(g):
                     break
             t = tr.read_typetree()
             ap = t.get('m_AnchoredPosition') or t['m_LocalPosition']
+            lp = t['m_LocalPosition']
             sd = t.get('m_SizeDelta') or {'x': 0, 'y': 0}
             slot, name = rus[pid]
             recs.append({'slot': slot, 'sprite': name, 'sprite_id': pid, 'go': go,
                          'tr': tr.path_id, 'x': ap['x'], 'y': ap['y'],
-                         'w': sd['x'], 'h': sd['y']})
+                         'lx': lp['x'], 'ly': lp['y'], 'w': sd['x'], 'h': sd['y']})
             break
     recs.sort(key=lambda r: -r['y'])
     rows, cur = [], []
@@ -296,8 +359,14 @@ def _resume_layout(g):
 
 
 def stage_resume(g):
+    """The Ukrainian words follow the Russian line breaks and slots, but go into
+    the English group: same frame and anchors, and word NN of one is word NN of
+    the other, so the English typing order carries over unchanged."""
     LIMIT, PUNCT = -2.0, 6
-    rows = _resume_layout(g)
+    rows = _resume_layout(g, RESUME_RU)
+    en = {s['slot']: s for row in _resume_layout(g, RESUME_EN) for s in row}
+    assert sorted(en) == sorted(s['slot'] for row in rows for s in row), \
+        'the English and Russian résumé groups do not number their words alike'
     ua = defaultdict(list)
     for f in sorted(os.listdir(os.path.join(ART, 'resume'))):
         if f.lower().endswith('.png'):
@@ -324,9 +393,15 @@ def stage_resume(g):
                 jobs.append({**slot, 'img': im, 'cx': cx})
             else:
                 surplus.append(slot)
+    # a slot with nothing to say still has an English word in it: give it a
+    # transparent pixel (packed last, so the real words land where they always did)
+    for s in surplus:
+        jobs.append({**s, 'img': Image.new('RGBA', (1, 1), (0, 0, 0, 0)), 'cx': s['x']})
 
-    # pack into the atlas' free band
+    # pack into the free band of the Russian words' page
     atlas_obj, atlas_tt, _ = g.atlas_entry(g.objs[jobs[0]['sprite_id']].read_typetree())
+    assert all(g.atlas_entry(g.objs[en[j['slot']]['sprite_id']].read_typetree())[0] is atlas_obj
+               for j in jobs), 'the two résumé groups are not in one atlas'
     page_id = None
     occ = defaultdict(lambda: Image.new('L', (2048, 2048), 0))
     from PIL import ImageDraw
@@ -365,10 +440,6 @@ def stage_resume(g):
     page = tex.read().image.convert('RGBA')
     for j in jobs:
         page.paste(j['img'], (j['ax'], 2048 - j['ay'] - j['img'].height))
-    for s in surplus:                                     # erase the unused word
-        _, r, _ = g.texture_of(g.objs[s['sprite_id']])
-        rx, ry, rw, rh = rect_px(r)
-        page.paste((0, 0, 0, 0), (rx, 2048 - ry - rh, rx + rw, 2048 - ry))
     t2 = tex.read()
     t2.set_image(page, target_format=TextureFormat.DXT5)
     t2.save()
@@ -378,7 +449,8 @@ def stage_resume(g):
         gg, l = key
         lut[(tuple(gg.values()), l)] = idx
     for j in jobs:
-        sp = g.objs[j['sprite_id']]
+        target = en[j['slot']]
+        sp = g.objs[target['sprite_id']]
         stt = sp.read_typetree()
         w, h = float(j['img'].width), float(j['img'].height)
         stt['m_Rect'] = {'x': 0.0, 'y': 0.0, 'width': w, 'height': h}
@@ -394,59 +466,116 @@ def stage_resume(g):
         sp.save_typetree(stt)
         gg, l = stt['m_RenderDataKey']
         e = atlas_tt['m_RenderDataMap'][lut[(tuple(gg.values()), l)]][1]
+        e['texture'] = {'m_FileID': 0, 'm_PathID': page_id}
         e['textureRect'] = {'x': float(j['ax']), 'y': float(j['ay']), 'width': w, 'height': h}
         e['atlasRectOffset'] = {'x': float(j['ax']), 'y': float(j['ay'])}
         e['textureRectOffset'] = {'x': 0.0, 'y': 0.0}
         e['uvTransform'] = {'x': PPU, 'y': j['ax'] + w / 2, 'z': PPU, 'w': j['ay'] + h / 2}
         # these words are UI Images: the RectTransform box is what actually
-        # sizes and positions them, the sprite alone is not enough
-        tro = g.objs[j['tr']]
+        # sizes and positions them, the sprite alone is not enough. The box goes
+        # where the Russian slot's is; x moves along the line as laid out above
+        tro = g.objs[target['tr']]
         t = tro.read_typetree()
         t['m_SizeDelta'] = {'x': w, 'y': h}
-        t['m_AnchoredPosition']['x'] = float(j['cx'])
-        t['m_LocalPosition']['x'] = float(j['cx'])
+        t['m_AnchoredPosition'] = {'x': float(j['cx']), 'y': float(j['y'])}
+        t['m_LocalPosition']['x'] = float(j['cx']) + (j['lx'] - j['x'])
+        t['m_LocalPosition']['y'] = float(j['ly'])
         tro.save_typetree(t)
     atlas_obj.save_typetree(atlas_tt)
-    log(f'  resume    {len(jobs)} words repacked into page {page_id} rows {band[0]}..{y+shelf-1}, '
-        f'{len(surplus)} blanked')
+    log(f'  resume    {len(jobs) - len(surplus)} words repacked into page {page_id} '
+        f'rows {band[0]}..{y+shelf-1}, laid out on the {SLOT} group, {len(surplus)} left blank')
+
+
+def _russian(g, row, manifest_dir):
+    """The Russian variant a manifest row stands for."""
+    # Ten language variants share each name; the Russian one is picked by the
+    # hash of its pixels. A hash identifies without carrying a copy of the
+    # original artwork, which is what makes this package redistributable.
+    want = row.get('sprite_sha256')
+    if want:
+        for o in g.sprites(row['sprite']):
+            if hashlib.sha256(o.read().image.convert('RGBA').tobytes()).hexdigest() == want:
+                return o
+        raise AssertionError(f'{row["sprite"]}: no variant matches the recorded hash '
+                             '— the game version is probably different')
+    ref = Image.open(os.path.join(manifest_dir, row['file'])).convert('RGBA')   # older manifests
+    best, score = None, 1e9
+    for o in g.sprites(row['sprite']):
+        s = mae(ref, o.read().image.convert('RGBA'))
+        if s < score:
+            best, score = o, s
+    assert best is not None and score < 25, f'{row["sprite"]}: no match ({score:.1f})'
+    return best
 
 
 def _bake_own_texture(g, folder, manifest_dir, label):
     man = list(csv.DictReader(open(os.path.join(manifest_dir, 'manifest.csv'), encoding='utf-8')))
     norm = lambda s: re.sub(r'[\s_]+', '', os.path.splitext(s)[0]).lower()
     files = {norm(f): f for f in os.listdir(folder) if f.lower().endswith('.png')}
+    ru = {row['sprite']: _russian(g, row, manifest_dir) for row in man}
     done = 0
     for row in man:
-        # Ten language variants share each name; the Russian one is picked by the
-        # hash of its pixels. A hash identifies without carrying a copy of the
-        # original artwork, which is what makes this package redistributable.
-        want = row.get('sprite_sha256')
-        best = None
-        if want:
-            for o in g.sprites(row['sprite']):
-                if hashlib.sha256(o.read().image.convert('RGBA').tobytes()).hexdigest() == want:
-                    best = o
-                    break
-            assert best is not None, (f'{row["sprite"]}: no variant matches the recorded hash '
-                                      '— the game version is probably different')
-        else:                                    # older manifests: fall back to pixels
-            ref = Image.open(os.path.join(manifest_dir, row['file'])).convert('RGBA')
-            best, score = None, 1e9
-            for o in g.sprites(row['sprite']):
-                s = mae(ref, o.read().image.convert('RGBA'))
-                if s < score:
-                    best, score = o, s
-            assert best is not None and score < 25, f'{row["sprite"]}: no match ({score:.1f})'
-        stt = best.read_typetree()
-        tex, r, hit = g.texture_of(best)
-        assert not hit, f'{row["sprite"]} unexpectedly atlas-packed'
+        best = ru[row['sprite']]
         img = Image.open(os.path.join(folder, files[norm(row['file'])])).convert('RGBA')
-        rx, ry, rw, rh = placement(tex.read_typetree(), img, r)
-        TW, TH = paint(tex, img, rx, ry, rw, rh)
+        en, en_tex = english_twin(g, best)
+        if row.get('template') == 'en':
+            # cut to the English sprite's own template: it keeps its geometry
+            tex, r, hit = g.texture_of(en)
+            assert not hit, f'{row["sprite"]}: the English sprite is atlas-packed, no template to paint'
+            stt, tt = en.read_typetree(), tex.read_typetree()
+            _check_template(row, tt, r, img, 'English')
+            rx, ry, rw, rh = placement(tt, img, r)
+            TW, TH = paint(tex, img, rx, ry, rw, rh)
+        else:
+            # Cut to the Russian template. The English sprite takes that canvas
+            # and geometry into its own texture, leaving its atlas (the journal)
+            # — the Russian sprite itself is only read, never saved.
+            tex, r, hit = g.texture_of(best)
+            assert not hit, f'{row["sprite"]} unexpectedly atlas-packed'
+            stt, tt = best.read_typetree(), tex.read_typetree()
+            if row.get('cut_to'):
+                # an animation frame drawn on the first frame's template: same
+                # canvas, and the lettering stays put from frame to frame
+                ref_tex, r, _ = g.texture_of(ru[row['cut_to']])
+                ref_tt = ref_tex.read_typetree()
+                assert (ref_tt['m_Width'], ref_tt['m_Height']) == (tt['m_Width'], tt['m_Height']), \
+                    f'{row["sprite"]}: {row["cut_to"]} has another canvas'
+            _check_template(row, tt, r, img, 'Russian')
+            rx, ry, rw, rh = placement(tt, img, r)
+            TW, TH = paint(en_tex, img, rx, ry, rw, rh,
+                           canvas=(tt['m_Width'], tt['m_Height'], tt['m_TextureFormat']))
+            assert not stt['m_AtlasTags'] and not stt['m_SpriteAtlas']['m_PathID']
+            stt['m_Name'] = en.read_typetree()['m_Name']
+            stt['m_RD']['texture'] = {'m_FileID': 0, 'm_PathID': en_tex.path_id}
         open_fullrect(stt, TW, TH)
-        best.save_typetree(stt)
+        en.save_typetree(stt)
         done += 1
     log(f'  {label:9} {done} images')
+
+
+def _check_template(row, tex_tt, rect, art, which):
+    """Art is drawn either on the whole canvas or on the lettering rect of its
+    template. Any other size would be squashed into the rect: stop instead."""
+    sizes = [(tex_tt['m_Width'], tex_tt['m_Height']), tuple(rect_px(rect)[2:])]
+    assert (art.width, art.height) in sizes, (
+        f'{row["file"]}: {art.width}x{art.height} fits neither the {which} canvas '
+        f'{sizes[0][0]}x{sizes[0][1]} nor its lettering {sizes[1][0]}x{sizes[1][1]}')
+
+
+def english_twin(g, ru_sprite):
+    """The English sprite shown where the Russian slot shows ru_sprite, and the
+    standalone texture under the same resource path."""
+    path = next(p for p, d in g.paths().items()
+                if 'Sprite' in d and d['Sprite'].path_id == ru_sprite.path_id)
+    head, _, name = path.rpartition('/')
+    if head.startswith('language/ru'):                   # journal: same names
+        en = 'language/en' + head[len('language/ru'):] + '/' + name
+    elif head.startswith('dynamictext/ru/'):             # cutscenes: en_ prefix
+        en = 'dynamictext/en/' + head[len('dynamictext/ru/'):] + '/en_' + name
+    else:
+        raise KeyError(f'{path}: no English counterpart')
+    twin = g.paths()[en]
+    return twin['Sprite'], twin['Texture2D']
 
 
 def stage_journal(g):
@@ -492,7 +621,7 @@ def main():
             fn(g)
         size = g.save()
         log(f'\nresources.assets written ({size/1e6:.1f} MB)')
-        log('done — launch the game with language set to Russian')
+        log(f'done — launch the game with language set to {NEW_LABEL}')
     else:
         from verify import verify
         verify(g)

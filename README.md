@@ -22,13 +22,13 @@ Steam guide: https://steamcommunity.com/sharedfiles/filedetails/?id=3801864198
 |---|---|
 | Текст | 703 репліки: сюжет, меню, підказки, описи предметів |
 | Шрифт | додано `і ї є ґ І Ї Є Ґ`, апостроф, багатокрапку, крапку з комою, тире |
-| Намальований текст | 67 зображень: титульний екран, резюме, щоденник, записки, катсцени |
+| Намальований текст | 85 зображень: титульний екран, резюме, щоденник, записки, листи, катсцени |
 
 Переклад робився з англійського оригіналу. Російська версія використовувалась лише як орієнтир щодо довжини рядків — і в кількох місцях вона розходиться з оригіналом за змістом, там я йшов за англійською.
 
-## Чому слот російської
+## Чому замість англійської
 
-Список мов вкомпільований у `GameAssembly.dll` — додати одинадцятий пункт без патчу нативного коду неможливо. Російський слот уже прив'язаний до кириличного шрифту, тому переклад займає саме його. У перемикачі мов пункт підписаний «Українська».
+Список мов вкомпільований у `GameAssembly.dll` — додати одинадцятий пункт без патчу нативного коду неможливо, тож переклад займає один із наявних слотів. Це англійський: у перемикачі мов він стоїть першим і підписаний «Українська». Поки переклад встановлено, англійської в грі немає. Російська лишається такою, як її випустила студія.
 
 ## Відкат
 
@@ -46,18 +46,20 @@ Steam guide: https://steamcommunity.com/sharedfiles/filedetails/?id=3801864198
 
 ## Як це влаштовано
 
-Інсталятор розпаковує та змінює вашу копію гри. Окрім перекладу й шрифту, він містить 67 зображень: ілюстрації гри з українськими написами замість оригінальних; самі ілюстрації належать студії. Вісім етапів за один прохід:
+Інсталятор розпаковує та змінює вашу копію гри. Окрім перекладу й шрифту, він містить 85 зображень: ілюстрації гри з українськими написами замість оригінальних; самі ілюстрації належать студії. Вісім етапів за один прохід:
 
-1. **font** — перезапечений атлас шрифту `MPLUSRounded1c`
-2. **text** — 703 рядки у TextAsset `Language - Russian`
+1. **font** — перезапечений атлас шрифту `MPLUSRounded1c`; англійський слот переведено на нього, бо в його власному шрифті кирилиці немає
+2. **text** — 703 рядки у TextAsset `Language - English`
 3. **label** — підпис мови в перемикачі
 4. **title** — напис на титульному екрані
 5. **computer** — дві сторінки резюме
 6. **resume** — 36 слів-зображень: перепаковані в атлас і переверстані
-7. **journal** — 16 рукописних нотаток
+7. **journal** — 34 нотатки, листи й підписи до ескізів
 8. **cutscenes** — 12 реплік персонажів
 
-Після запису інсталятор сам перевіряє результат: кількість гліфів, повноту тексту, відповідність кожного зображення вихідному файлу.
+Змінюються лише англійські об'єкти: префаби й анімації посилаються на них напряму, тож хоч би яким шляхом гра дісталася до зображення, вона покаже українське. Російські лишаються недоторканими, але правлять за зразок: їхні написи за розкладкою найближчі до українських, тому перемальовані зображення вирізано під їхні полотна, а резюме повторює їхні переноси рядків.
+
+Після запису інсталятор сам перевіряє результат: кількість гліфів, повноту тексту, відповідність кожного зображення вихідному файлу — і те, що російська версія побайтно збігається з оригіналом.
 
 ### Вихідний код
 
@@ -101,13 +103,13 @@ Then pick **Українська** in the game's settings.
 |---|---|
 | Text | 703 strings: story, menus, hints, item descriptions |
 | Font | added `і ї є ґ І Ї Є Ґ`, apostrophe, ellipsis, semicolon, en dash |
-| Drawn text | 67 images: title screen, résumé, journal, notes, cutscenes |
+| Drawn text | 85 images: title screen, résumé, journal, notes, letters, cutscenes |
 
 Translated from the English original. The Russian version was used only as a guide for line widths — and in a few places it diverges from the English in meaning, where I followed the English.
 
-## Why the Russian slot
+## Why the English slot
 
-The language list is compiled into `GameAssembly.dll`, so an eleventh entry cannot be added without patching native code. The Russian slot is already wired to the Cyrillic font, so the translation takes that slot. In the language picker it reads "Українська".
+The language list is compiled into `GameAssembly.dll`, so an eleventh entry cannot be added without patching native code, and the translation takes one of the existing slots. It takes English: first in the language picker, where it reads "Українська". While the translation is installed, English is not available. Russian stays exactly as the studio shipped it.
 
 ## Uninstalling
 
@@ -125,18 +127,20 @@ Saves live outside the game folder, so they survive either way.
 
 ## How it works
 
-The installer unpacks and edits your own copy of the game. Besides the translation and the font, it carries 67 images: the game's artwork with Ukrainian lettering in place of the original; the artwork itself belongs to the studio. Eight stages in one pass:
+The installer unpacks and edits your own copy of the game. Besides the translation and the font, it carries 85 images: the game's artwork with Ukrainian lettering in place of the original; the artwork itself belongs to the studio. Eight stages in one pass:
 
-1. **font** — rebaked `MPLUSRounded1c` glyph atlas
-2. **text** — 703 strings into the `Language - Russian` TextAsset
+1. **font** — rebaked `MPLUSRounded1c` glyph atlas; the English slot is switched to it, as its own font has no Cyrillic
+2. **text** — 703 strings into the `Language - English` TextAsset
 3. **label** — the language picker entry
 4. **title** — the title-screen lettering
 5. **computer** — two full-page résumé images
 6. **resume** — 36 word images, repacked into the atlas and re-laid-out
-7. **journal** — 16 handwritten notes
+7. **journal** — 34 notes, letters and sketch captions
 8. **cutscenes** — 12 spoken lines
 
-After writing, the installer verifies its own work: glyph count, text completeness, and every image against its source.
+Only English objects are changed: prefabs and animations point at them directly, so whatever path the game takes to an image, it lands on the Ukrainian one. The Russian ones are left untouched but serve as the template: their lettering is laid out closest to Ukrainian, so the redrawn images are cut to their canvases and the résumé follows their line breaks.
+
+After writing, the installer verifies its own work: glyph count, text completeness, every image against its source — and that the Russian version is byte-for-byte as shipped.
 
 ### Source code
 

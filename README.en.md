@@ -16,13 +16,13 @@ Then pick **Українська** in the game's settings.
 |---|---|
 | Text | 703 strings: story, menus, hints, item descriptions |
 | Font | added `і ї є ґ І Ї Є Ґ`, apostrophe, ellipsis, semicolon, en dash |
-| Drawn text | 67 images: title screen, résumé, journal, notes, cutscenes |
+| Drawn text | 85 images: title screen, résumé, journal, notes, letters, cutscenes |
 
 Translated from the English original. The Russian version was used only as a guide for line widths — and in a few places it diverges from the English in meaning, where I followed the English.
 
-## Why the Russian slot
+## Why the English slot
 
-The language list is compiled into `GameAssembly.dll`, so an eleventh entry cannot be added without patching native code. The Russian slot is already wired to the Cyrillic font, so the translation takes that slot. In the language picker it reads "Українська".
+The language list is compiled into `GameAssembly.dll`, so an eleventh entry cannot be added without patching native code, and the translation takes one of the existing slots. It takes English: first in the language picker, where it reads "Українська". While the translation is installed, English is not available. Russian stays exactly as the studio shipped it.
 
 ## Uninstalling
 
@@ -40,18 +40,20 @@ Saves live outside the game folder, so they survive either way.
 
 ## How it works
 
-The installer unpacks and edits your own copy of the game. Besides the translation and the font, it carries 67 images: the game's artwork with Ukrainian lettering in place of the original; the artwork itself belongs to the studio. Eight stages in one pass:
+The installer unpacks and edits your own copy of the game. Besides the translation and the font, it carries 85 images: the game's artwork with Ukrainian lettering in place of the original; the artwork itself belongs to the studio. Eight stages in one pass:
 
-1. **font** — rebaked `MPLUSRounded1c` glyph atlas
-2. **text** — 703 strings into the `Language - Russian` TextAsset
+1. **font** — rebaked `MPLUSRounded1c` glyph atlas; the English slot is switched to it, as its own font has no Cyrillic
+2. **text** — 703 strings into the `Language - English` TextAsset
 3. **label** — the language picker entry
 4. **title** — the title-screen lettering
 5. **computer** — two full-page résumé images
 6. **resume** — 36 word images, repacked into the atlas and re-laid-out
-7. **journal** — 16 handwritten notes
+7. **journal** — 34 notes, letters and sketch captions
 8. **cutscenes** — 12 spoken lines
 
-After writing, the installer verifies its own work: glyph count, text completeness, and every image against its source.
+Only English objects are changed: prefabs and animations point at them directly, so whatever path the game takes to an image, it lands on the Ukrainian one. The Russian ones are left untouched but serve as the template: their lettering is laid out closest to Ukrainian, so the redrawn images are cut to their canvases and the résumé follows their line breaks.
+
+After writing, the installer verifies its own work: glyph count, text completeness, every image against its source — and that the Russian version is byte-for-byte as shipped.
 
 ### Source code
 

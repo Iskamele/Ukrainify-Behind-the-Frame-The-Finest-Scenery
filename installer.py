@@ -89,6 +89,7 @@ def main():
     print(f'  Гра: {path}')
     print()
     print('  Буде змінено resources.assets і 1 МБ усередині resources.assets.resS.')
+    print('  Переклад займе місце англійської мови, російську не зачеплено.')
     print('  Поряд зберуться копії .orig — щоб можна було відкотитись.')
     print('  Збереження не чіпаються (вони в AppData\\LocalLow).')
     print()
